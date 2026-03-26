@@ -20,5 +20,5 @@ const src = fs.readFileSync('shorts-studio.html', 'utf8');
 const out = src.replace('__OPENAI_API_KEY__', apiKey);
 
 fs.mkdirSync('dist', { recursive: true });
-fs.writeFileSync(path.join('dist', 'shorts-studio.html'), out);
-console.log('Build complete → dist/shorts-studio.html');
+fs.writeFileSync(path.join('dist', 'index.html'), out);
+console.log('Build complete → dist/index.html');
