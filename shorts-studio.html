@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShortsBrain — AI Shorts Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #07070d;
+  --s1:       #0f0f18;
+  --s2:       #161620;
+  --s3:       #1e1e2c;
+  --s4:       #262636;
+  --acc:      #ff4d1c;
+  --acc2:     #ff9a1c;
+  --acc3:     #ffce45;
+  --cyan:     #00e5ff;
+  --green:    #00e096;
+  --purple:   #c084fc;
+  --text:     #eeeef5;
+  --text2:    #8888aa;
+  --text3:    #44445a;
+  --border:   rgba(255,255,255,0.055);
+  --border2:  rgba(255,255,255,0.10);
+  --glow-acc: 0 0 40px rgba(255,77,28,0.18);
+  --glow-sm:  0 0 18px rgba(255,77,28,0.12);
+  --r:        13px;
+  --r-sm:     8px;
+  --r-lg:     20px;
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'Manrope', sans-serif;
+  --font-mono: 'Fira Code', monospace;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html { font-size: 15px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BACKGROUND MESH ── */
+body::before {
+  content:'';
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 40% at 15% 60%, rgba(255,77,28,.07) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at 85% 15%, rgba(0,229,255,.04) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 60% 90%, rgba(192,132,252,.04) 0%, transparent 60%);
+  animation: meshFloat 25s ease-in-out infinite;
+}
+@keyframes meshFloat {
+  0%,100% { transform: scale(1) translate(0,0); }
+  33%      { transform: scale(1.03) translate(1%, -1.5%); }
+  66%      { transform: scale(.98) translate(-1%, 1%); }
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--s4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ══════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════ */
+.shell {
+  display: grid;
+  grid-template-rows: 58px 1fr;
+  grid-template-columns: 220px 1fr;
+  grid-template-areas: "hd hd" "sb main";
+  height: 100vh;
+}
+
+/* ── HEADER ── */
+.hd {
+  grid-area: hd;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px;
+  background: rgba(7,7,13,.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 200;
+}
+
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-badge {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--acc), var(--acc2));
+  border-radius: 9px;
+  display: grid; place-items: center;
+  font-size: 16px; font-weight: 800;
+  animation: logoPulse 3s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes logoPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,77,28,.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(255,77,28,0); }
+}
+.logo-name {
+  font-family: var(--font-head);
+  font-weight: 800; font-size: 17px;
+  background: linear-gradient(135deg, var(--acc), var(--acc2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: -.3px;
+}
+.logo-tag {
+  font-size: 9.5px; color: var(--text3);
+  letter-spacing: 2.5px; text-transform: uppercase; font-weight: 600;
+  margin-top: 1px;
+}
+
+/* API BAR */
+.api-wrap { display: flex; align-items: center; gap: 10px; }
+.api-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text3); flex-shrink: 0;
+  transition: background .3s, box-shadow .3s;
+}
+.api-dot.on { background: var(--green); box-shadow: 0 0 10px rgba(0,224,150,.45); }
+.api-label { font-size: 11px; color: var(--text3); letter-spacing: .5px; white-space: nowrap; }
+.api-key-input {
+  width: 260px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 8px 14px;
+  color: var(--text); font-family: var(--font-mono); font-size: 11px;
+  outline: none; transition: all .25s; letter-spacing: .3px;
+}
+.api-key-input:focus { border-color: var(--acc); box-shadow: var(--glow-sm); }
+
+/* ── SIDEBAR ── */
+.sb {
+  grid-area: sb;
+  border-right: 1px solid var(--border);
+  padding: 18px 12px;
+  display: flex; flex-direction: column; gap: 2px;
+  overflow-y: auto;
+  background: rgba(10,10,18,.5);
+}
+
+.nav-section {
+  font-size: 9px; font-weight: 700; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--text3);
+  padding: 14px 12px 6px; font-family: var(--font-mono);
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 14px; border-radius: 10px;
+  cursor: pointer; transition: all .2s;
+  font-size: 13.5px; font-weight: 500; color: var(--text2);
+  position: relative; user-select: none;
+}
+.nav-item::after {
+  content:''; position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 0; border-radius: 0 3px 3px 0;
+  background: linear-gradient(var(--acc), var(--acc2));
+  transition: height .2s;
+}
+.nav-item:hover { background: var(--s2); color: var(--text); }
+.nav-item.active { background: rgba(255,77,28,.09); color: var(--text); font-weight: 600; }
+.nav-item.active::after { height: 22px; }
+.nav-icon { font-size: 17px; width: 24px; text-align: center; flex-shrink: 0; }
+
+.badge {
+  margin-left: auto; background: var(--acc); color: #fff;
+  font-size: 9.5px; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px; min-width: 20px; text-align: center;
+}
+.badge.new { background: linear-gradient(135deg,var(--acc),var(--acc2)); }
+
+.nav-divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+/* ── MAIN CONTENT ── */
+.main {
+  grid-area: main;
+  overflow-y: auto;
+  padding: 32px 40px 60px;
+}
+
+.page { display: none; animation: fadeUp .35s ease-out; }
+.page.active { display: block; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── PAGE HEADER ── */
+.pg-header { margin-bottom: 28px; }
+.pg-eyebrow {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--acc);
+  margin-bottom: 6px;
+}
+.pg-title {
+  font-family: var(--font-head); font-size: 26px; font-weight: 800;
+  letter-spacing: -.5px; color: var(--text);
+  line-height: 1.2; margin-bottom: 6px;
+}
+.pg-desc { font-size: 13.5px; color: var(--text2); line-height: 1.65; max-width: 600px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 24px; margin-bottom: 18px;
+  transition: border-color .25s;
+  position: relative; overflow: hidden;
+}
+.card::before {
+  content:''; position: absolute; top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,77,28,.18), transparent);
+}
+.card:hover { border-color: var(--border2); }
+
+.card-title {
+  font-family: var(--font-head); font-size: 14px; font-weight: 700;
+  letter-spacing: -.2px; margin-bottom: 18px; color: var(--text);
+  display: flex; align-items: center; gap: 9px;
+}
+.card-badge {
+  font-size: 9px; font-family: var(--font-mono); font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  background: rgba(255,77,28,.15); color: var(--acc);
+  padding: 3px 9px; border-radius: 20px;
+  border: 1px solid rgba(255,77,28,.25);
+}
+
+/* ── FORM ── */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3);
+  margin-bottom: 7px; display: block;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%; background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 11px 14px;
+  color: var(--text); font-family: var(--font-body); font-size: 13.5px;
+  outline: none; transition: all .25s;
+}
+.form-input::placeholder, .form-textarea::placeholder { color: var(--text3); }
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--acc); box-shadow: var(--glow-sm);
+  background: var(--s3);
+}
+.form-textarea { min-height: 90px; resize: vertical; line-height: 1.7; }
+.form-select {
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2344445a' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 13px center;
+  padding-right: 34px;
+}
+.form-select option { background: var(--s3); color: var(--text); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+/* Chips */
+.chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 4px; }
+.chip {
+  padding: 6px 14px; background: var(--s2); border: 1px solid var(--border);
+  border-radius: 20px; font-size: 12px; cursor: pointer;
+  transition: all .2s; color: var(--text2); font-weight: 500;
+  user-select: none; font-family: var(--font-body);
+}
+.chip:hover { border-color: rgba(255,77,28,.4); color: var(--text); }
+.chip.on {
+  background: rgba(255,77,28,.12); border-color: rgba(255,77,28,.5);
+  color: var(--acc); font-weight: 600;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 11px 24px; border: none; border-radius: var(--r-sm);
+  font-family: var(--font-body); font-size: 13.5px; font-weight: 700;
+  cursor: pointer; transition: all .25s;
+  display: inline-flex; align-items: center; gap: 8px; letter-spacing: -.1px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--acc), var(--acc2));
+  color: #fff; box-shadow: var(--glow-sm);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: var(--glow-acc); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-secondary {
+  background: var(--s2); color: var(--text); border: 1px solid var(--border2);
+}
+.btn-secondary:hover { background: var(--s3); border-color: rgba(255,255,255,.15); }
+.btn-ghost { background: transparent; color: var(--text2); }
+.btn-ghost:hover { color: var(--text); background: var(--s2); }
+.btn-sm { padding: 7px 15px; font-size: 12px; border-radius: 7px; }
+.btn-lg { padding: 14px 32px; font-size: 15px; border-radius: var(--r); }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ── LOADING ── */
+.loading { display: none; align-items: center; gap: 10px; color: var(--acc); font-size: 12.5px; margin-top: 14px; font-family: var(--font-mono); }
+.loading.show { display: flex; }
+.dots { display: flex; gap: 5px; }
+.dots span {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--acc);
+  animation: dotBounce 1.3s ease-in-out infinite;
+}
+.dots span:nth-child(2) { animation-delay: .2s; }
+.dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes dotBounce {
+  0%,80%,100% { transform: translateY(0); opacity: .3; }
+  40%          { transform: translateY(-7px); opacity: 1; }
+}
+
+/* ── OUTPUT BOX ── */
+.output-box {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px; min-height: 120px;
+  white-space: pre-wrap; line-height: 1.85; font-size: 13.5px;
+  position: relative; transition: all .3s;
+}
+.output-box.empty {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3); font-style: italic;
+  min-height: 140px; font-size: 13px;
+}
+.copy-btn {
+  position: absolute; top: 12px; right: 12px;
+  background: var(--s3); border: 1px solid var(--border2);
+  color: var(--text2); padding: 5px 12px; border-radius: 7px;
+  font-size: 11px; cursor: pointer; font-family: var(--font-mono);
+  transition: all .2s; z-index: 2;
+}
+.copy-btn:hover { background: var(--acc); color: #fff; border-color: var(--acc); }
+
+.output-label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--text3);
+  margin-bottom: 10px; margin-top: 20px;
+}
+
+/* ══════════════════════════════════════
+   SCRIPT STUDIO (combined Hook + Script)
+══════════════════════════════════════ */
+.studio-hero {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 28px; margin-bottom: 20px;
+  position: relative; overflow: hidden;
+}
+.studio-hero::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--acc), var(--acc2), var(--acc3), transparent);
+}
+
+.studio-idea-input {
+  width: 100%; background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 20px;
+  color: var(--text); font-family: var(--font-body); font-size: 16px;
+  outline: none; transition: all .3s; line-height: 1.6;
+  resize: none; min-height: 90px;
+  font-weight: 500;
+}
+.studio-idea-input::placeholder { color: var(--text3); font-weight: 400; }
+.studio-idea-input:focus { border-color: var(--acc); box-shadow: var(--glow-sm); background: var(--s3); }
+
+.studio-options {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 12px; margin: 16px 0;
+}
+
+.studio-generate-btn {
+  width: 100%; padding: 15px; font-size: 15.5px; font-weight: 800;
+  background: linear-gradient(135deg, var(--acc) 0%, var(--acc2) 100%);
+  color: #fff; border: none; border-radius: var(--r); cursor: pointer;
+  transition: all .3s; letter-spacing: -.2px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--font-head);
+  box-shadow: 0 4px 24px rgba(255,77,28,.25);
+}
+.studio-generate-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 36px rgba(255,77,28,.4); }
+.studio-generate-btn:active { transform: translateY(0); }
+.studio-generate-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.studio-generate-btn .btn-arrow { font-size: 20px; }
+
+/* Studio output sections */
+.studio-output { display: none; }
+.studio-output.show { display: block; }
+
+.hooks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 8px; }
+
+.hook-card {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px;
+  transition: all .25s; cursor: pointer; position: relative;
+}
+.hook-card::before {
+  content:''; position: absolute; inset: 0; border-radius: var(--r);
+  background: linear-gradient(135deg, rgba(255,77,28,.06), transparent);
+  opacity: 0; transition: opacity .2s;
+}
+.hook-card:hover { border-color: var(--acc); }
+.hook-card:hover::before { opacity: 1; }
+
+.hook-number {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--acc); letter-spacing: 1.5px; margin-bottom: 10px;
+  text-transform: uppercase;
+}
+.hook-screen {
+  font-family: var(--font-head); font-size: 15px; font-weight: 800;
+  line-height: 1.35; color: var(--text); margin-bottom: 10px;
+}
+.hook-vo {
+  font-size: 12.5px; color: var(--text2); line-height: 1.6;
+  padding-top: 10px; border-top: 1px solid var(--border);
+  font-style: italic;
+}
+.hook-why {
+  font-size: 11px; color: var(--text3); margin-top: 8px; line-height: 1.5;
+}
+.hook-use-btn {
+  margin-top: 12px; width: 100%;
+  background: rgba(255,77,28,.1); border: 1px solid rgba(255,77,28,.25);
+  color: var(--acc); padding: 7px; border-radius: 7px;
+  font-size: 11.5px; font-weight: 700; cursor: pointer;
+  font-family: var(--font-body); transition: all .2s;
+  letter-spacing: .3px;
+}
+.hook-use-btn:hover { background: rgba(255,77,28,.2); }
+
+.script-output-wrap {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r); overflow: hidden;
+}
+.script-output-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  background: var(--s3);
+}
+.script-output-title {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  color: var(--text2); letter-spacing: 1.5px; text-transform: uppercase;
+}
+.script-body {
+  padding: 22px 24px; min-height: 200px;
+  font-family: var(--font-body);
+}
+
+/* Caption line style */
+.caption-line {
+  display: block;
+  font-size: 15px; font-weight: 600; color: var(--text);
+  line-height: 1.5; padding: 5px 0;
+  font-family: var(--font-head); letter-spacing: -.2px;
+}
+.caption-engage {
+  display: block;
+  font-size: 15px; font-weight: 700; color: var(--acc2);
+  line-height: 1.5; padding: 5px 0;
+  font-family: var(--font-head); letter-spacing: -.2px;
+}
+.caption-hook-prepend {
+  display: block;
+  font-size: 15px; font-weight: 700; color: var(--cyan);
+  line-height: 1.5; padding: 5px 0;
+  font-family: var(--font-head); letter-spacing: -.2px;
+}
+.caption-divider {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text3);
+  letter-spacing: 2px; padding: 10px 0 6px; text-transform: uppercase;
+}
+
+/* Hook caption lines */
+.hook-captions { margin-bottom: 10px; }
+.hook-caption-line {
+  font-family: var(--font-head); font-size: 14px; font-weight: 700;
+  color: var(--text); line-height: 1.55; padding: 2px 0;
+  letter-spacing: -.2px;
+}
+.script-stats {
+  padding: 14px 22px; border-top: 1px solid var(--border);
+  background: var(--s1); display: flex; gap: 24px; flex-wrap: wrap;
+}
+.stat-item { text-align: center; }
+.stat-val {
+  font-family: var(--font-head); font-size: 20px; font-weight: 800;
+  background: linear-gradient(135deg, var(--acc), var(--acc2));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.stat-label { font-size: 10px; color: var(--text3); font-family: var(--font-mono); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+/* ══════════════════════════════════════
+   IDEA CARDS
+══════════════════════════════════════ */
+.ideas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.idea-card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px; cursor: pointer;
+  transition: all .25s; position: relative; overflow: hidden;
+}
+.idea-card::after {
+  content: '→ Use this idea'; position: absolute; bottom: 14px; right: 16px;
+  font-size: 11px; color: var(--acc); font-family: var(--font-mono);
+  opacity: 0; transition: opacity .2s;
+}
+.idea-card:hover { border-color: var(--acc); transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.idea-card:hover::after { opacity: 1; }
+.idea-title { font-family: var(--font-head); font-weight: 700; font-size: 14.5px; margin-bottom: 10px; line-height: 1.4; }
+.idea-tags { display: flex; gap: 7px; flex-wrap: wrap; }
+.idea-tag {
+  font-size: 10px; padding: 3px 9px; border-radius: 5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px; font-family: var(--font-mono);
+}
+.t-cat  { background: rgba(0,229,255,.1);  color: var(--cyan); }
+.t-hook { background: rgba(255,77,28,.12); color: var(--acc); }
+.t-diff { background: rgba(255,206,69,.1); color: var(--acc3); }
+.idea-viral { font-size: 11px; color: var(--text3); margin-top: 9px; line-height: 1.5; }
+
+/* ══════════════════════════════════════
+   YT / CLIP CARDS
+══════════════════════════════════════ */
+.yt-grid { display: grid; gap: 12px; }
+.yt-card {
+  display: flex; gap: 16px; background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px; transition: border-color .2s;
+}
+.yt-card:hover { border-color: var(--border2); }
+.yt-info { flex: 1; min-width: 0; }
+.yt-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; line-height: 1.4; }
+.yt-channel { font-size: 12px; color: var(--text2); margin-bottom: 3px; }
+.yt-stats  { font-size: 11px; color: var(--text3); }
+.yt-link { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--cyan); text-decoration: none; font-weight: 600; }
+.yt-link:hover { text-decoration: underline; }
+
+/* ══════════════════════════════════════
+   HISTORY
+══════════════════════════════════════ */
+.history-item {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px; margin-bottom: 10px;
+  cursor: pointer; transition: border-color .2s;
+}
+.history-item:hover { border-color: var(--border2); }
+.h-type { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--acc); font-weight: 600; margin-bottom: 6px; }
+.h-preview { font-size: 13px; color: var(--text2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.h-full { display: none; margin-top: 12px; font-size: 13px; color: var(--text); white-space: pre-wrap; line-height: 1.75; max-height: 400px; overflow-y: auto; }
+.h-time { font-size: 10.5px; color: var(--text3); margin-top: 8px; font-family: var(--font-mono); }
+
+/* ══════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════ */
+@media (max-width: 960px) {
+  .shell { grid-template-areas: "hd" "sb" "main"; grid-template-columns: 1fr; grid-template-rows: 58px auto 1fr; }
+  .sb { flex-direction: row; overflow-x: auto; padding: 10px 14px; border-right: none; border-bottom: 1px solid var(--border); max-height: 60px; }
+  .nav-section, .nav-divider, .logo-tag { display: none; }
+  .nav-item { white-space: nowrap; padding: 8px 12px; font-size: 13px; border-radius: 8px; }
+  .nav-item::after { display: none; }
+  .main { padding: 20px 18px 50px; }
+  .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  .hooks-grid { grid-template-columns: 1fr; }
+  .studio-options { grid-template-columns: 1fr 1fr; }
+  .api-key-input { width: 160px; }
+  .api-label { display: none; }
+}
+@media (max-width: 560px) {
+  .studio-options { grid-template-columns: 1fr; }
+  .hd { padding: 0 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- ══════ HEADER ══════ -->
+<header class="hd">
+  <div class="logo">
+    <div class="logo-badge">⚡</div>
+    <div>
+      <div class="logo-name">ShortsBrain</div>
+      <div class="logo-tag">AI Shorts Studio</div>
+    </div>
+  </div>
+  <div class="api-wrap">
+    <span class="api-label">OpenAI API</span>
+    <div class="api-dot" id="apiDot"></div>
+    <input type="password" class="api-key-input" id="apiKey" placeholder="sk-... your API key" />
+  </div>
+</header>
+
+<!-- ══════ SIDEBAR ══════ -->
+<nav class="sb">
+  <div class="nav-section">Create</div>
+  <div class="nav-item active" data-page="studio">
+    <span class="nav-icon">⚡</span> Script Studio
+    <span class="badge new">NEW</span>
+  </div>
+  <div class="nav-item" data-page="ideas">
+    <span class="nav-icon">💡</span> Idea Generator
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-section">Research</div>
+  <div class="nav-item" data-page="clips">
+    <span class="nav-icon">🎬</span> Find Clips
+  </div>
+  <div class="nav-item" data-page="trends">
+    <span class="nav-icon">📈</span> Trend Analyzer
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-section">Tools</div>
+  <div class="nav-item" data-page="titles">
+    <span class="nav-icon">✏️</span> Title Optimizer
+  </div>
+  <div class="nav-item" data-page="history">
+    <span class="nav-icon">🕒</span> History
+    <span class="badge" id="historyCount">0</span>
+  </div>
+</nav>
+
+<!-- ══════ MAIN ══════ -->
+<main class="main">
+
+  <!-- ┌─────────────────────────────────────────┐
+       │  PAGE: SCRIPT STUDIO (Hook + Script)    │
+       └─────────────────────────────────────────┘ -->
+  <div class="page active" id="page-studio">
+    <div class="pg-header">
+      <div class="pg-eyebrow">Script Studio</div>
+      <h1 class="pg-title">Drop your idea. Get a ready-to-shoot script. ⚡</h1>
+      <p class="pg-desc">Type any idea and instantly receive 3 viral hooks + a complete voiceover script with timing markers — all in one click.</p>
+    </div>
+
+    <div class="studio-hero">
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">Your Idea</label>
+        <textarea class="studio-idea-input" id="studioIdea" placeholder="e.g. Why people put garlic in their nose, or how to throw cards like an assassin..."></textarea>
+      </div>
+
+      <div class="studio-options">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Duration</label>
+          <select class="form-select" id="studioDuration">
+            <option value="15">15 sec</option>
+            <option value="30" selected>30 sec</option>
+            <option value="45">45 sec</option>
+            <option value="60">60 sec</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Voice Style</label>
+          <select class="form-select" id="studioVoice">
+            <option value="casual-bro">Casual Bro</option>
+            <option value="narrator">Documentary</option>
+            <option value="energetic">High Energy</option>
+            <option value="mysterious">Mysterious</option>
+            <option value="educational">Chill Edu</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Hook Style</label>
+          <select class="form-select" id="studioHookStyle">
+            <option value="all">All Types</option>
+            <option value="question">Question</option>
+            <option value="shock">Shock / WTF</option>
+            <option value="challenge">Challenge</option>
+            <option value="myth-bust">Myth Bust</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Includes</label>
+          <select class="form-select" id="studioIncludes">
+            <option value="hook+visuals+timing+cta">Everything</option>
+            <option value="hook+visuals+timing" selected>Hook + Visuals + Timing</option>
+            <option value="hook+timing">Hook + Timing</option>
+            <option value="basic">Basic Script</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="studio-generate-btn" id="studioBtn" onclick="generateStudio()">
+        <span>⚡ Generate Full Script</span>
+        <span class="btn-arrow">→</span>
+      </button>
+      <div class="loading" id="studioLoading">
+        <div class="dots"><span></span><span></span><span></span></div>
+        Writing your hooks + script...
+      </div>
+    </div>
+
+    <!-- OUTPUT -->
+    <div class="studio-output" id="studioOutput">
+
+      <!-- HOOKS -->
+      <div class="output-label">🪝 Viral Hooks — pick your favourite</div>
+      <div class="hooks-grid" id="hooksGrid"></div>
+
+      <!-- SCRIPT -->
+      <div class="output-label">📝 Full Script</div>
+      <div class="script-output-wrap">
+        <div class="script-output-header">
+          <span class="script-output-title" id="scriptMeta">Script</span>
+          <button class="copy-btn" style="position:static" onclick="copyEl('scriptBody')">Copy Script</button>
+        </div>
+        <div class="script-body" id="scriptBody"></div>
+        <div class="script-stats" id="scriptStats"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ┌──────────────────────┐
+       │  PAGE: IDEA GENERATOR │
+       └──────────────────────┘ -->
+  <div class="page" id="page-ideas">
+    <div class="pg-header">
+      <div class="pg-eyebrow">Brainstorm</div>
+      <h1 class="pg-title">💡 Idea Generator</h1>
+      <p class="pg-desc">Generate viral short video ideas in seconds. Click any idea to open it in Script Studio.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ Configuration</div>
+      <div class="form-group">
+        <label class="form-label">Niche / Style</label>
+        <div class="chip-row" id="nicheChips">
+          <span class="chip on" data-val="life-hacks">Life Hacks</span>
+          <span class="chip" data-val="wtf-facts">WTF Facts</span>
+          <span class="chip" data-val="cool-skills">Cool Skills</span>
+          <span class="chip" data-val="survival">Survival Tips</span>
+          <span class="chip" data-val="body-science">Body Science</span>
+          <span class="chip" data-val="food-hacks">Food Hacks</span>
+          <span class="chip" data-val="challenges">Challenges</span>
+          <span class="chip" data-val="how-it-works">How It Works</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Number of Ideas</label>
+          <select class="form-select" id="ideaCount">
+            <option value="5">5 ideas</option>
+            <option value="10" selected>10 ideas</option>
+            <option value="20">20 ideas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tone</label>
+          <select class="form-select" id="ideaTone">
+            <option value="casual-curious">Casual & Curious</option>
+            <option value="shocking">Shocking / WTF</option>
+            <option value="educational">Educational</option>
+            <option value="challenge">Challenge / Interactive</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Additional Context (optional)</label>
+        <input class="form-input" id="ideaContext" placeholder="e.g., trending topics, avoid certain themes..." />
+      </div>
+      <button class="btn btn-primary" onclick="generateIdeas()">⚡ Generate Ideas</button>
+      <div class="loading" id="ideasLoading">
+        <div class="dots"><span></span><span></span><span></span></div>
+        Brainstorming viral ideas...
+      </div>
+    </div>
+
+    <div class="output-label">Generated Ideas</div>
+    <div class="ideas-grid" id="ideasOutput"></div>
+  </div>
+
+  <!-- ┌──────────────────┐
+       │  PAGE: FIND CLIPS │
+       └──────────────────┘ -->
+  <div class="page" id="page-clips">
+    <div class="pg-header">
+      <div class="pg-eyebrow">Research</div>
+      <h1 class="pg-title">🎬 Find Clips</h1>
+      <p class="pg-desc">AI-powered clip research — get YouTube search queries, stock footage ideas, and usage tips.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔍 Clip Finder</div>
+      <div class="form-group">
+        <label class="form-label">What clips do you need?</label>
+        <input class="form-input" id="clipQuery" placeholder="e.g., cactus spines removal, card throwing trick shots" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Clip Type</label>
+          <select class="form-select" id="clipType">
+            <option value="reference">Reference / Inspiration</option>
+            <option value="stock">Stock Footage Ideas</option>
+            <option value="tutorial">Tutorial / How-To</option>
+            <option value="compilation">Compilations</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">License</label>
+          <select class="form-select" id="clipLicense">
+            <option value="any">Any (Reference Only)</option>
+            <option value="creative-commons">Creative Commons</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="findClips()">🔍 Search YouTube</button>
+        <button class="btn btn-secondary" onclick="suggestClipIdeas()">💡 AI Suggest Clips</button>
+      </div>
+      <div class="loading" id="clipsLoading">
+        <div class="dots"><span></span><span></span><span></span></div>
+        Searching for clips...
+      </div>
+    </div>
+
+    <div class="yt-grid" id="clipsOutput"></div>
+    <div class="output-box empty" id="clipsEmpty">Search for clips or get AI suggestions...</div>
+  </div>
+
+  <!-- ┌────────────────────────┐
+       │  PAGE: TREND ANALYZER  │
+       └────────────────────────┘ -->
+  <div class="page" id="page-trends">
+    <div class="pg-header">
+      <div class="pg-eyebrow">Research</div>
+      <h1 class="pg-title">📈 Trend Analyzer</h1>
+      <p class="pg-desc">AI analyzes what's working in the shorts space and surfaces actionable content opportunities.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔥 Analyze Trends</div>
+      <div class="form-group">
+        <label class="form-label">Your Niche</label>
+        <input class="form-input" id="trendNiche" placeholder="e.g., life hacks, satisfying tricks, weird facts" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Focus Area</label>
+        <select class="form-select" id="trendFocus">
+          <option value="viral-formats">Viral Formats Right Now</option>
+          <option value="underexplored">Underexplored Topics</option>
+          <option value="seasonal">Seasonal / Timely Content</option>
+          <option value="competitor">Competitor Analysis</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="analyzeTrends()">📈 Analyze</button>
+      <div class="loading" id="trendsLoading">
+        <div class="dots"><span></span><span></span><span></span></div>
+        Analyzing current trends...
+      </div>
+    </div>
+
+    <div class="output-label">Trend Report</div>
+    <div class="output-box empty" id="trendsOutput">Your trend analysis will appear here...</div>
+  </div>
+
+  <!-- ┌──────────────────────┐
+       │  PAGE: TITLE OPTIMIZER│
+       └──────────────────────┘ -->
+  <div class="page" id="page-titles">
+    <div class="pg-header">
+      <div class="pg-eyebrow">Tools</div>
+      <h1 class="pg-title">✏️ Title Optimizer</h1>
+      <p class="pg-desc">Paste your title and get optimized variations ranked by click-through potential.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏷️ Optimize Your Title</div>
+      <div class="form-group">
+        <label class="form-label">Your Current Title</label>
+        <input class="form-input" id="titleInput" placeholder="e.g., how to remove cactus spines" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Variations to Generate</label>
+        <select class="form-select" id="titleCount">
+          <option value="5" selected>5 variations</option>
+          <option value="10">10 variations</option>
+          <option value="15">15 variations</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="optimizeTitle()">✏️ Optimize Title</button>
+      <div class="loading" id="titlesLoading">
+        <div class="dots"><span></span><span></span><span></span></div>
+        Optimizing for maximum clicks...
+      </div>
+    </div>
+
+    <div class="output-label">Optimized Titles</div>
+    <div class="output-box empty" id="titlesOutput">Your optimized titles will appear here...</div>
+  </div>
+
+  <!-- ┌────────────────┐
+       │  PAGE: HISTORY  │
+       └────────────────┘ -->
+  <div class="page" id="page-history">
+    <div class="pg-header">
+      <div class="pg-eyebrow">Archive</div>
+      <h1 class="pg-title">🕒 Generation History</h1>
+      <p class="pg-desc">All generated content saved locally. Click any item to expand.</p>
+    </div>
+    <div class="btn-row" style="margin-bottom:22px">
+      <button class="btn btn-secondary btn-sm" onclick="clearHistory()">🗑️ Clear All</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportHistory()">📥 Export JSON</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+
+</main>
+</div><!-- end .shell -->
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+let appHistory = JSON.parse(localStorage.getItem('sb_history') || '[]');
+updateHistoryCount();
+
+// ══════════════════════════════════════════════════════════
+//  API KEY
+// ══════════════════════════════════════════════════════════
+const API_KEY_DEFAULT = '__OPENAI_API_KEY__';
+const keyInput = document.getElementById('apiKey');
+const keyDot   = document.getElementById('apiDot');
+
+keyInput.value = localStorage.getItem('sb_apikey') || API_KEY_DEFAULT;
+updateDot();
+
+keyInput.addEventListener('input', () => {
+  localStorage.setItem('sb_apikey', keyInput.value.trim());
+  updateDot();
+});
+
+function updateDot() {
+  keyDot.classList.toggle('on', keyInput.value.trim().length > 10);
+}
+
+function getKey() {
+  const k = keyInput.value.trim();
+  if (!k) { alert('Please enter your OpenAI API key in the top-right.'); return null; }
+  return k;
+}
+
+// ══════════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════════
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    const page = document.getElementById('page-' + item.dataset.page);
+    if (page) page.classList.add('active');
+    if (item.dataset.page === 'history') renderHistory();
+  });
+});
+
+// ══════════════════════════════════════════════════════════
+//  CHIPS
+// ══════════════════════════════════════════════════════════
+document.querySelectorAll('.chip-row').forEach(row => {
+  row.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => c.classList.toggle('on'));
+  });
+});
+
+// ══════════════════════════════════════════════════════════
+//  OPENAI HELPER
+// ══════════════════════════════════════════════════════════
+async function callAI(system, user, temp = 0.9, maxTok = 3500) {
+  const key = getKey();
+  if (!key) return null;
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      temperature: temp,
+      max_tokens: maxTok
+    })
+  });
+
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message || `API ${res.status}`);
+  }
+  return (await res.json()).choices[0].message.content;
+}
+
+function load(id, on) { document.getElementById(id).classList.toggle('show', on); }
+
+function saveHistory(type, content) {
+  appHistory.unshift({ type, content, time: new Date().toISOString() });
+  if (appHistory.length > 100) appHistory = appHistory.slice(0, 100);
+  localStorage.setItem('sb_history', JSON.stringify(appHistory));
+  updateHistoryCount();
+}
+
+function updateHistoryCount() {
+  const el = document.getElementById('historyCount');
+  if (el) el.textContent = appHistory.length;
+}
+
+function copyEl(id) {
+  const el = document.getElementById(id);
+  // Extract plain caption text (remove quotes, keep line breaks)
+  const lines = [...el.querySelectorAll('.caption-line, .caption-engage, .caption-hook-prepend')];
+  const plain = lines.length
+    ? lines.map(l => l.textContent.trim()).join('\n')
+    : el.innerText;
+  navigator.clipboard.writeText(plain).then(() => {
+    const btns = document.querySelectorAll(`[onclick="copyEl('${id}')"]`);
+    btns.forEach(b => { b.textContent = '✓ Copied!'; setTimeout(() => b.textContent = 'Copy Script', 1600); });
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+//  SCRIPT STUDIO — combined Hook + Script generator
+// ══════════════════════════════════════════════════════════
+async function generateStudio() {
+  const idea     = document.getElementById('studioIdea').value.trim();
+  const duration = document.getElementById('studioDuration').value;
+  const voice    = document.getElementById('studioVoice').value;
+  const hookSty  = document.getElementById('studioHookStyle').value;
+  const includes = document.getElementById('studioIncludes').value;
+
+  if (!idea) { alert('Enter your video idea first!'); return; }
+
+  const voiceMap = {
+    'casual-bro':   'Casual, conversational, bro energy. Short punchy sentences. Use "ngl", "lowkey", "dude". TroniShorts style.',
+    'narrator':     'Documentary narrator. Calm, authoritative. Think National Geographic meets internet culture.',
+    'energetic':    'HIGH ENERGY. Fast pace. Lots of exclamation! "WAIT TILL YOU SEE THIS!" YouTube hype energy.',
+    'mysterious':   'Slow, conspiratorial. "What they don\'t tell you..." Dark knowledge vibes.',
+    'educational':  'Chill teacher. Clear explanations. "So here\'s the thing..." Makes complex feel simple.'
+  };
+
+  const includesCues = includes.includes('visuals') ? '- Include visual cue notes [like this] for each section\n' : '';
+  const includesTiming = includes.includes('timing') ? '- Include exact timing markers (e.g. 0:00-0:03)\n' : '';
+  const includesCTA = includes.includes('cta') ? '- Include a call-to-action at the end (follow, like, comment)\n' : '';
+
+  const system = `You are a viral YouTube Shorts scriptwriter. Return ONLY valid JSON, no markdown, no code fences.
+
+═══════════════════════════════════════
+SCRIPT STYLE — FOLLOW EXACTLY
+═══════════════════════════════════════
+Write in the "caption-per-line" viral shorts format. Each line is ONE short phrase (3-10 words max).
+Use "…" ellipses to create pause and suspense between lines.
+Each line makes the viewer NEED to read the next one.
+Tone: casual, conversational, like texting a friend out loud.
+
+MANDATORY engagement bait — place naturally in the middle of the script:
+- "Like if you ever [done the exact thing the video is about] [relevant emoji]"
+- "Subscribe if you [love/enjoy the subject of this video] [relevant emoji]"
+
+RULES for engagement lines:
+- Keep them SHORT and DIRECT — one line each
+- Reference the SPECIFIC topic of the video, nothing generic
+- Example for "you peel bananas wrong":
+    "Like if you ever eaten a banana 🍌"
+    "Subscribe if you love them 😭"
+- Example for "card shuffle":
+    "Like if you ever played cards 🃏"
+    "Subscribe if you love card tricks 😭"
+- Do NOT say "like and subscribe" — keep them separate lines
+
+End the script with a self-deprecating joke predicting the viewer will fail trying it.
+NO timing markers. NO visual cue labels. Pure spoken caption lines only.
+
+EXAMPLE (card shuffle topic):
+"Ever wondered how people shuffle cards like THIS…"
+"And make it look impossible??"
+"And no… it's not luck."
+"It's muscle memory."
+"Like if you love cards 🃏"
+"And subscribe if you've ever played 😭"
+"They practice the same motion…"
+"Over and over again."
+"Until their fingers just… know what to do."
+"It's called a riffle shuffle."
+"And once you get it…"
+"It looks like magic."
+"But yeah… your first try is gonna look terrible."
+"Now you're gonna try this and drop the cards."
+
+═══════════════════════════════════════
+HOOK STYLE — ALSO CAPTION FORMAT
+═══════════════════════════════════════
+Each hook must ALSO be written as 2-3 short caption lines (same "…" style).
+Not a single sentence — a mini sequence that builds curiosity.
+
+Example hook (caption format):
+Line 1: "Wait… why do people actually do this??"
+Line 2: "It's not what you think."
+Line 3: "And it changes everything."
+
+═══════════════════════════════════════
+JSON FORMAT
+═══════════════════════════════════════
+{
+  "hooks": [
+    {
+      "number": 1,
+      "style": "Question|Shock|Challenge|Myth Bust|Forbidden",
+      "lines": ["caption line 1…", "caption line 2.", "caption line 3."],
+      "why": "one sentence why this hook stops scrolling"
+    }
+  ],
+  "script": "each caption line on its own line, quoted, exactly like the example above",
+  "stats": {
+    "lines": number_of_caption_lines,
+    "hookScore": number_1_to_10,
+    "rewatchScore": number_1_to_10,
+    "hashtags": ["tag1","tag2","tag3","tag4","tag5"]
+  }
+}
+
+Generate 3 hooks (varied: ${hookSty === 'all' ? 'question, shock, challenge' : hookSty}).
+Script voice flavour: ${voiceMap[voice]}
+Target length: ~${duration} seconds (~${Math.round(duration / 2)} caption lines at ~2s each)`;
+
+  const user = `Video idea: "${idea}"
+Generate 3 hooks + complete ${duration}-second script.`;
+
+  load('studioLoading', true);
+  document.getElementById('studioBtn').disabled = true;
+  document.getElementById('studioOutput').classList.remove('show');
+
+  try {
+    const raw = await callAI(system, user, 0.88, 3500);
+    const data = JSON.parse(raw.replace(/```json?|```/g, '').trim());
+
+    // Render hooks (caption-line format)
+    document.getElementById('hooksGrid').innerHTML = data.hooks.map((h, i) => {
+      const lines = Array.isArray(h.lines) ? h.lines : [h.screen || h.voiceover || ''];
+      const linesHtml = lines.map(l => `<div class="hook-caption-line">"${escHtml(l)}"</div>`).join('');
+      const hookText = lines.join('\n');
+      return `
+      <div class="hook-card">
+        <div class="hook-number">Hook ${h.number || i+1} · ${escHtml(h.style || '')}</div>
+        <div class="hook-captions">${linesHtml}</div>
+        <div class="hook-why">💡 ${escHtml(h.why)}</div>
+        <button class="hook-use-btn" onclick="useHook(${JSON.stringify(hookText)})">Use This Hook ↗</button>
+      </div>`;
+    }).join('');
+
+    // Render script as styled caption lines
+    // GPT sometimes returns script as array — normalize to string first
+    const scriptRaw = Array.isArray(data.script)
+      ? data.script.join('\n')
+      : String(data.script || '');
+    const scriptLines = scriptRaw.split('\n').filter(l => l.trim());
+    const scriptHtml = scriptLines.map(line => {
+      const clean = line.trim().replace(/^"+|"+$/g, '');
+      if (!clean) return '';
+      const isEngagement = /like if|subscribe if/i.test(clean);
+      return `<div class="caption-line${isEngagement ? ' caption-engage' : ''}">"${escHtml(clean)}"</div>`;
+    }).join('');
+    document.getElementById('scriptMeta').textContent =
+      `${duration}s · ${data.stats?.lines || scriptLines.length} lines · ${voice}`;
+    document.getElementById('scriptBody').innerHTML = scriptHtml || escHtml(scriptRaw);
+
+    // Render stats
+    const s = data.stats || {};
+    document.getElementById('scriptStats').innerHTML = [
+      { val: s.lines || scriptLines.length || '—', label: 'Lines' },
+      { val: `${s.hookScore || '—'}/10`,  label: 'Hook Score' },
+      { val: `${s.rewatchScore || '—'}/10`, label: 'Rewatch' },
+      { val: (s.hashtags||[]).slice(0,3).map(t=>'#'+t).join(' '), label: 'Top Tags' }
+    ].map(item => `
+      <div class="stat-item">
+        <div class="stat-val">${item.val}</div>
+        <div class="stat-label">${item.label}</div>
+      </div>
+    `).join('');
+
+    document.getElementById('studioOutput').classList.add('show');
+    saveHistory(`Script: ${idea.substring(0,60)}`, data.script);
+
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+
+  load('studioLoading', false);
+  document.getElementById('studioBtn').disabled = false;
+}
+
+function useHook(hookText) {
+  navigator.clipboard.writeText(hookText);
+  const btn = event.target;
+  btn.textContent = '✓ Hook copied!';
+  setTimeout(() => btn.textContent = 'Use This Hook ↗', 2000);
+  // Prepend to script visually
+  const body = document.getElementById('scriptBody');
+  if (body.innerHTML) {
+    const hookLines = hookText.split('\n').filter(l=>l.trim())
+      .map(l => `<div class="caption-line caption-hook-prepend">"${escHtml(l)}"</div>`).join('');
+    const divider = `<div class="caption-divider">── hook ──</div>`;
+    body.innerHTML = hookLines + divider + body.innerHTML;
+    body.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  IDEA GENERATOR
+// ══════════════════════════════════════════════════════════
+async function generateIdeas() {
+  const niches  = [...document.querySelectorAll('#nicheChips .chip.on')].map(c => c.dataset.val).join(', ');
+  const count   = document.getElementById('ideaCount').value;
+  const tone    = document.getElementById('ideaTone').value;
+  const context = document.getElementById('ideaContext').value;
+
+  const system = `You are a viral YouTube Shorts strategist. Generate ideas for curiosity-driven faceless short videos (life hacks, weird facts, cool skills).
+
+Proven title formats:
+- "Why [people] [weird action]"
+- "If you get [problem], do THIS"
+- "How to [skill] like a [cool persona]"
+- "Only [X]% can do this"
+- "You've been [action] wrong your whole life"
+
+Return ONLY valid JSON array, no markdown:
+[{"title":"...","category":"...","hookType":"...","difficulty":"Easy|Medium|Hard","whyViral":"max 10 words"}]`;
+
+  const user = `Generate ${count} viral YouTube Shorts ideas.
+Niches: ${niches || 'all'}
+Tone: ${tone}
+${context ? 'Context: ' + context : ''}`;
+
+  load('ideasLoading', true);
+  const out = document.getElementById('ideasOutput');
+  out.innerHTML = '';
+
+  try {
+    const raw    = await callAI(system, user);
+    const ideas  = JSON.parse(raw.replace(/```json?|```/g, '').trim());
+    out.innerHTML = ideas.map(idea => `
+      <div class="idea-card" onclick="sendToStudio('${escAttr(idea.title)}')">
+        <div class="idea-title">${escHtml(idea.title)}</div>
+        <div class="idea-tags">
+          <span class="idea-tag t-cat">${escHtml(idea.category)}</span>
+          <span class="idea-tag t-hook">${escHtml(idea.hookType)}</span>
+          <span class="idea-tag t-diff">${escHtml(idea.difficulty)}</span>
+        </div>
+        <div class="idea-viral">${escHtml(idea.whyViral || '')}</div>
+      </div>
+    `).join('');
+    saveHistory('Ideas', ideas.map(i => i.title).join('\n'));
+  } catch(e) {
+    out.innerHTML = `<div class="card" style="color:var(--acc)">Error: ${e.message}</div>`;
+  }
+  load('ideasLoading', false);
+}
+
+function sendToStudio(title) {
+  document.getElementById('studioIdea').value = title;
+  // Navigate to studio
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-page="studio"]').classList.add('active');
+  document.getElementById('page-studio').classList.add('active');
+  document.getElementById('studioIdea').focus();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ══════════════════════════════════════════════════════════
+//  FIND CLIPS
+// ══════════════════════════════════════════════════════════
+async function findClips() {
+  const query   = document.getElementById('clipQuery').value.trim();
+  const type    = document.getElementById('clipType').value;
+  const license = document.getElementById('clipLicense').value;
+  if (!query) { alert('Enter a search query!'); return; }
+
+  load('clipsLoading', true);
+  const out   = document.getElementById('clipsOutput');
+  const empty = document.getElementById('clipsEmpty');
+  out.innerHTML = '';
+  empty.style.display = 'none';
+
+  const system = `You are a YouTube clip research assistant. Return ONLY valid JSON:
+{
+  "searches": [{"query":"...","why":"..."}],
+  "stockSources": ["..."],
+  "tips": ["..."]
+}`;
+
+  try {
+    const raw  = await callAI(system, `Topic: "${query}"\nClip type: ${type}\nLicense: ${license}`);
+    const data = JSON.parse(raw.replace(/```json?|```/g, '').trim());
+    out.innerHTML = data.searches.map(s => `
+      <div class="yt-card">
+        <div class="yt-info">
+          <div class="yt-title">🔍 ${escHtml(s.query)}</div>
+          <div class="yt-channel">${escHtml(s.why)}</div>
+          <a class="yt-link" href="https://www.youtube.com/results?search_query=${encodeURIComponent(s.query)}" target="_blank">→ Search on YouTube</a>
+        </div>
+      </div>
+    `).join('') + `
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">📦 Free Stock Sources</div>
+        ${data.stockSources.map(s => `<div style="padding:3px 0;font-size:13px;color:var(--text2)">• ${escHtml(s)}</div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="card-title">⚖️ Usage Tips</div>
+        ${data.tips.map(t => `<div style="padding:3px 0;font-size:13px;color:var(--text2)">• ${escHtml(t)}</div>`).join('')}
+      </div>
+    `;
+    saveHistory('Clip Search: ' + query, JSON.stringify(data, null, 2));
+  } catch(e) {
+    empty.innerHTML = `<span style="color:var(--acc)">Error: ${e.message}</span>`;
+    empty.style.display = 'flex'; empty.classList.remove('empty');
+  }
+  load('clipsLoading', false);
+}
+
+async function suggestClipIdeas() {
+  const query = document.getElementById('clipQuery').value || 'general life hacks and cool tricks';
+  load('clipsLoading', true);
+  const out   = document.getElementById('clipsOutput');
+  const empty = document.getElementById('clipsEmpty');
+
+  try {
+    const result = await callAI(
+      `You are a visual content strategist for YouTube Shorts. Suggest B-roll clips, visual transitions, and footage ideas. Be specific about what to film or source.`,
+      `I'm making a YouTube Short about: "${query}"\n\nSuggest 8-10 specific clips I need, where to find them, and how to transition. Format as a numbered list with emoji.`,
+      0.9
+    );
+    empty.style.display = 'none';
+    out.innerHTML = `
+      <div class="card">
+        <div class="card-title">💡 AI Clip Suggestions</div>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText(this.nextElementSibling.innerText)">Copy</button>
+        <div style="line-height:1.9;font-size:13.5px">${escHtml(result).replace(/\n/g,'<br>')}</div>
+      </div>`;
+    saveHistory('Clip Ideas: ' + query, result);
+  } catch(e) {
+    empty.innerHTML = `<span style="color:var(--acc)">Error: ${e.message}</span>`;
+    empty.style.display = 'flex'; empty.classList.remove('empty');
+  }
+  load('clipsLoading', false);
+}
+
+// ══════════════════════════════════════════════════════════
+//  TREND ANALYZER
+// ══════════════════════════════════════════════════════════
+async function analyzeTrends() {
+  const niche = document.getElementById('trendNiche').value || 'life hacks and cool tricks';
+  const focus = document.getElementById('trendFocus').value;
+  const focusMap = {
+    'viral-formats':  'What video FORMATS and STRUCTURES are going viral right now in this niche?',
+    'underexplored':  'What are UNDEREXPLORED sub-topics with low competition but high curiosity potential?',
+    'seasonal':       'What seasonal or timely content opportunities exist RIGHT NOW for this niche?',
+    'competitor':     'Analyze top channels in this niche. What are they doing well? What gaps exist?'
+  };
+
+  load('trendsLoading', true);
+  const out = document.getElementById('trendsOutput');
+
+  try {
+    const result = await callAI(
+      `You are a YouTube Shorts trend analyst (early 2026). Provide actionable, specific insights for curiosity-driven faceless shorts. Include specific video ideas, data-backed reasoning, and concrete action items. Format with emojis and clear sections.`,
+      `Niche: "${niche}"\nFocus: ${focusMap[focus]}\n\nGive me a detailed trend report with 5+ insights and 10 video ideas.`,
+      0.9
+    );
+    out.classList.remove('empty');
+    out.innerHTML = `<button class="copy-btn" onclick="copyText(this.parentElement.innerText)">Copy</button>` +
+      escHtml(result).replace(/\n/g,'<br>');
+    saveHistory('Trends: ' + niche, result);
+  } catch(e) {
+    out.innerHTML = `<span style="color:var(--acc)">Error: ${e.message}</span>`;
+    out.classList.remove('empty');
+  }
+  load('trendsLoading', false);
+}
+
+// ══════════════════════════════════════════════════════════
+//  TITLE OPTIMIZER
+// ══════════════════════════════════════════════════════════
+async function optimizeTitle() {
+  const title = document.getElementById('titleInput').value.trim();
+  const count = document.getElementById('titleCount').value;
+  if (!title) { alert('Enter a title to optimize!'); return; }
+
+  load('titlesLoading', true);
+  const out = document.getElementById('titlesOutput');
+
+  try {
+    const result = await callAI(
+      `You are a YouTube Shorts title optimization expert. Optimize titles for maximum CTR.
+Rules: under 50 chars ideal, use curiosity gaps and power words (actually, secretly, never, wrong, illegal, insane), avoid spam.
+For each variation:
+🏆 [RANK] — [CTR /10]
+📌 Title: "[TITLE]"
+💡 Why: [explanation]
+---`,
+      `Original: "${title}"\nGenerate ${count} optimized variations, best to worst CTR.`,
+      0.85
+    );
+    out.classList.remove('empty');
+    out.innerHTML = `<button class="copy-btn" onclick="copyText(this.parentElement.innerText)">Copy</button>` +
+      escHtml(result).replace(/\n/g,'<br>');
+    saveHistory('Title: ' + title, result);
+  } catch(e) {
+    out.innerHTML = `<span style="color:var(--acc)">Error: ${e.message}</span>`;
+    out.classList.remove('empty');
+  }
+  load('titlesLoading', false);
+}
+
+// ══════════════════════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════════════════════
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!appHistory.length) {
+    list.innerHTML = '<div style="color:var(--text3);text-align:center;padding:50px 0;font-size:13px">No history yet. Start generating!</div>';
+    return;
+  }
+  list.innerHTML = appHistory.map((h, i) => `
+    <div class="history-item" onclick="this.querySelector('.h-full').style.display = this.querySelector('.h-full').style.display === 'none' ? 'block' : 'none'">
+      <div class="h-type">${escHtml(h.type)}</div>
+      <div class="h-preview">${escHtml(h.content.substring(0,120))}...</div>
+      <div class="h-full">${escHtml(h.content)}</div>
+      <div class="h-time">${new Date(h.time).toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+function clearHistory() {
+  if (confirm('Clear all history?')) {
+    appHistory = [];
+    localStorage.setItem('sb_history', '[]');
+    updateHistoryCount();
+    renderHistory();
+  }
+}
+
+function exportHistory() {
+  const blob = new Blob([JSON.stringify(appHistory, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: 'shortsbrain_history.json' });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ══════════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════════
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/'/g,"\\'").replace(/\n/g,' ');
+}
+function copyText(text) {
+  navigator.clipboard.writeText(text);
+}
+</script>
+</body>
+</html>
