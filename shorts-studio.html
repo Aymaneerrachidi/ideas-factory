@@ -1102,55 +1102,43 @@ async function generateStudio() {
 ═══════════════════════════════════════
 SCRIPT STYLE — FOLLOW EXACTLY
 ═══════════════════════════════════════
-Write in the "caption-per-line" viral shorts format. Each line is ONE short phrase (3-10 words max).
-Use "…" ellipses to create pause and suspense between lines.
-Each line makes the viewer NEED to read the next one.
-Tone: casual, conversational, like texting a friend out loud.
+Write in natural flowing sentences, exactly like someone casually talking to a friend on camera.
+NOT choppy fragments. NOT ellipses for every pause. Full sentences that flow when spoken out loud.
+Funny, light, and easy to follow. No slang abbreviations — write every word in full.
 
-MANDATORY engagement bait — place naturally in the middle of the script:
-- "Like if you ever [done the exact thing the video is about] [relevant emoji]"
-- "Subscribe if you [love/enjoy the subject of this video] [relevant emoji]"
+STRUCTURE (always follow this order):
+1. CURIOSITY OPENER — Start with "Have you ever wondered..." or "You have probably seen..." to hook immediately.
+2. TEASE THE REVEAL — Say it seems impossible, but there is actually a secret method. Build just enough suspense.
+3. SOCIAL PROOF LINE — Add one line like "it is easy to do and will impress your friends" or "everyone will think you are a genius."
+4. LIKE AND SUBSCRIBE — Place these as two separate short lines in the middle of the script, before the reveal. Always follow this exact pattern:
+   Line 1: "Like if you ever [did the exact thing the video is about]"
+   Line 2: "Subscribe if you enjoy [the thing]"
+   Example for soda: "Like if you ever drank soda" / "Subscribe if you enjoy drinking it"
+   Example for moonwalk: "Like if you ever tried to moonwalk" / "Subscribe if you enjoy dancing"
+   Keep them extremely short and direct. No emojis on these lines. No other wording.
+5. REVEAL / STEPS — Explain the method simply. Short steps. "First do this... then do that..."
+6. FUNNY PUNCHLINE ENDING — End with a joke that reveals the trick is absurdly simple or teases the viewer will mess it up.
 
-RULES for engagement lines:
-- Keep them SHORT and DIRECT — one line each
-- Reference the SPECIFIC topic of the video, nothing generic
-- Example for "you peel bananas wrong":
-    "Like if you ever eaten a banana 🍌"
-    "Subscribe if you love them 😭"
-- Example for "card shuffle":
-    "Like if you ever played cards 🃏"
-    "Subscribe if you love card tricks 😭"
-- Do NOT say "like and subscribe" — keep them separate lines
+RULES:
+- No abbreviations: write "you are" not "you're", "it is" not "it's", "do not" not "don't"
+- No ellipses abuse. Use them max once or twice for dramatic effect only.
+- Keep it under 30 seconds when read aloud (~75 words max)
+- Funny and light tone throughout
+- Each sentence must naturally lead to the next — no random jumps
 
-End the script with a self-deprecating joke predicting the viewer will fail trying it.
-NO timing markers. NO visual cue labels. Pure spoken caption lines only.
-
-EXAMPLE (card shuffle topic):
-"Ever wondered how people shuffle cards like THIS…"
-"And make it look impossible??"
-"And no… it's not luck."
-"It's muscle memory."
-"Like if you love cards 🃏"
-"And subscribe if you've ever played 😭"
-"They practice the same motion…"
-"Over and over again."
-"Until their fingers just… know what to do."
-"It's called a riffle shuffle."
-"And once you get it…"
-"It looks like magic."
-"But yeah… your first try is gonna look terrible."
-"Now you're gonna try this and drop the cards."
+EXAMPLE (walk on water topic):
+"Have you ever wondered how people can walk on water, like how do they not just fall in? You have probably seen many viral videos of people mysteriously walking on water. Many people believe that this is impossible but there is actually a secret method behind this. Like if you ever tried to walk on water. Subscribe if you enjoy cool tricks. It is easy to do and will impress your crush. So how do you do it? First, place a chair that is totally clear into the water. Then just repeat this step until you can completely walk across. Now go try it and do not blame me when you fall in."
 
 ═══════════════════════════════════════
-HOOK STYLE — ALSO CAPTION FORMAT
+HOOK STYLE
 ═══════════════════════════════════════
-Each hook must ALSO be written as 2-3 short caption lines (same "…" style).
-Not a single sentence — a mini sequence that builds curiosity.
+Each hook is 1-2 full natural sentences that spark immediate curiosity.
+Should feel like the first words of a real conversation — not a headline.
 
-Example hook (caption format):
-Line 1: "Wait… why do people actually do this??"
-Line 2: "It's not what you think."
-Line 3: "And it changes everything."
+Example hooks:
+- "Have you ever wondered if it is actually possible to walk on water without any special equipment?"
+- "Most people think this is impossible, but there is one secret method nobody ever talks about."
+- "If someone told you that you could walk on water in under two minutes, would you believe them?"
 
 ═══════════════════════════════════════
 JSON FORMAT
@@ -1160,13 +1148,13 @@ JSON FORMAT
     {
       "number": 1,
       "style": "Question|Shock|Challenge|Myth Bust|Forbidden",
-      "lines": ["caption line 1…", "caption line 2.", "caption line 3."],
+      "lines": ["Full hook sentence 1.", "Full hook sentence 2."],
       "why": "one sentence why this hook stops scrolling"
     }
   ],
-  "script": "each caption line on its own line, quoted, exactly like the example above",
+  "script": "the full script as one block of text, sentences separated by spaces, ready to read aloud",
   "stats": {
-    "lines": number_of_caption_lines,
+    "lines": estimated_word_count,
     "hookScore": number_1_to_10,
     "rewatchScore": number_1_to_10,
     "hashtags": ["tag1","tag2","tag3","tag4","tag5"]
@@ -1175,10 +1163,10 @@ JSON FORMAT
 
 Generate 3 hooks (varied: ${hookSty === 'all' ? 'question, shock, challenge' : hookSty}).
 Script voice flavour: ${voiceMap[voice]}
-Target length: ~${duration} seconds (~${Math.round(duration / 2)} caption lines at ~2s each)`;
+Target length: max 30 seconds (~75 words max)`;
 
   const user = `Video idea: "${idea}"
-Generate 3 hooks + complete ${duration}-second script.`;
+Generate 3 hooks + one complete script. Max 30 seconds when read aloud (~75 words). Flowing natural sentences, no abbreviations, funny tone.`;
 
   load('studioLoading', true);
   document.getElementById('studioBtn').disabled = true;
@@ -1268,34 +1256,40 @@ async function generateIdeas() {
   const tone    = document.getElementById('ideaTone').value;
   const context = document.getElementById('ideaContext').value;
 
-  const system = `You are a viral short-form content idea generator.
+  const system = `You are a viral YouTube Shorts idea generator. Your style is dumb, simple, and extremely clickable — like a channel for 10-year-olds that adults also cannot stop watching.
 
-Your goal is to create highly clickable, curiosity-driven ideas similar to viral TikTok and YouTube Shorts.
+THE FORMULA: Take the most obvious, everyday thing in the world. Make it sound shocking, dangerous, or secretly impossible. That is it.
 
-Before generating each idea, follow this thinking process:
-1. Start with a simple everyday topic (body, food, habits, social behavior, survival, random facts)
-2. Add one of these twists:
-   - danger (risk, warning, mistake)
-   - impossible ability (superhuman skill)
-   - hidden truth (something people don't know)
-   - weird explanation (unexpected reason why something happens)
-3. Turn it into a strong curiosity hook using one of these formats:
-   - "How To…"
-   - "Never Do This…"
-   - "Why Does…"
-   - "Do THIS If…"
-4. Make it feel urgent, shocking, or surprising
-5. Keep it extremely simple (under 10 words)
+TOPIC POOL — only pick from these categories:
+- Things everyone does daily (eating, drinking, sleeping, hair, nails, chewing, walking)
+- Basic body stuff (knuckles, tongue, eyes, skin, jaw, fingers)
+- Normal foods (candy, ice cream, chocolate, soda, milk, coffee, cake, cookies, gum)
+- Simple skills (moonwalk, cartwheel, handstand, bottle flip, whistle, juggle)
+- Common animals doing obvious things (why dogs spin, why cats hate water, why pandas are lazy)
+- Everyday objects and dangers (pen, hair gel, shampoo, deodorant, vaseline, balloons)
+- Survival of dumb scenarios (quicksand, frozen tongue, escalator, elevator, bee sting)
 
-Rules:
-- No boring or obvious ideas
-- No long explanations
-- Each idea must make people feel: "I NEED to know this"
-- Use emotional triggers (fear, surprise, curiosity)
-- Add emojis like 😱 😨 🤯 when relevant
+TITLE FORMATS — use exactly these, nothing else:
+- "NEVER [do totally normal thing] 😱" — e.g. "NEVER Chew Your Pen 😱", "NEVER Use Deodorant 😱"
+- "How To [obvious or impossible thing] 😱" — e.g. "How To Moonwalk 😱", "How To Walk On Water 😱"
+- "Why [animal or person] [does obvious thing] 😨" — e.g. "Why Dogs Spin Before Lying Down 🥹"
+- "Do THIS If [common scary situation] 😱" — e.g. "Do THIS If Your Elevator Falls 😱"
+- "If [situation], Do THIS 😱"
+
+RULES:
+- Topics must be SO simple a child gets it immediately
+- The more obvious and dumb the topic, the better
+- Never use complex or niche topics
+- Title must be under 8 words
+- Always end with 1 emoji (😱 😨 😰 🤯 🥹 🤮 😅)
+- The "danger" or "secret" angle can be completely made up or absurd — that is the joke
+- Mix "NEVER" warnings with "How To" skills with "Why does" facts
+
+GOOD examples: "NEVER Eat Ice 😱", "How To Remove A Frozen Tongue 😱", "Never Swim In Public Pools 🤮", "Why Dogs Hate The Middle Finger 😨", "NEVER Brush Your Hair 😱"
+BAD examples: anything about coding, crypto, productivity, business, relationships, complex science
 
 Return ONLY valid JSON array, no markdown:
-[{"title":"...","category":"...","hookType":"...","difficulty":"Easy|Medium|Hard","whyViral":"max 10 words"}]`;
+[{"title":"...","category":"...","hookType":"NEVER|How To|Why|Do THIS","difficulty":"Easy|Medium|Hard","whyViral":"max 10 words"}]`;
 
   const user = `Generate ${count} viral YouTube Shorts ideas.
 Niches: ${niches || 'all'}
