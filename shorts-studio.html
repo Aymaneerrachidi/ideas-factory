@@ -1213,14 +1213,31 @@ async function generateIdeas() {
   const tone    = document.getElementById('ideaTone').value;
   const context = document.getElementById('ideaContext').value;
 
-  const system = `You are a viral YouTube Shorts strategist. Generate ideas for curiosity-driven faceless short videos (life hacks, weird facts, cool skills).
+  const system = `You are a viral short-form content idea generator.
 
-Proven title formats:
-- "Why [people] [weird action]"
-- "If you get [problem], do THIS"
-- "How to [skill] like a [cool persona]"
-- "Only [X]% can do this"
-- "You've been [action] wrong your whole life"
+Your goal is to create highly clickable, curiosity-driven ideas similar to viral TikTok and YouTube Shorts.
+
+Before generating each idea, follow this thinking process:
+1. Start with a simple everyday topic (body, food, habits, social behavior, survival, random facts)
+2. Add one of these twists:
+   - danger (risk, warning, mistake)
+   - impossible ability (superhuman skill)
+   - hidden truth (something people don't know)
+   - weird explanation (unexpected reason why something happens)
+3. Turn it into a strong curiosity hook using one of these formats:
+   - "How To…"
+   - "Never Do This…"
+   - "Why Does…"
+   - "Do THIS If…"
+4. Make it feel urgent, shocking, or surprising
+5. Keep it extremely simple (under 10 words)
+
+Rules:
+- No boring or obvious ideas
+- No long explanations
+- Each idea must make people feel: "I NEED to know this"
+- Use emotional triggers (fear, surprise, curiosity)
+- Add emojis like 😱 😨 🤯 when relevant
 
 Return ONLY valid JSON array, no markdown:
 [{"title":"...","category":"...","hookType":"...","difficulty":"Easy|Medium|Hard","whyViral":"max 10 words"}]`;
