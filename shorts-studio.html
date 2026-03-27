@@ -615,6 +615,9 @@ body::before {
   <div class="nav-item" data-page="titles">
     <span class="nav-icon">✏️</span> Title Optimizer
   </div>
+  <div class="nav-item" data-page="metadata">
+    <span class="nav-icon">🏷️</span> Title + Desc + Tags
+  </div>
   <div class="nav-item" data-page="history">
     <span class="nav-icon">🕒</span> History
     <span class="badge" id="historyCount">0</span>
@@ -888,6 +891,58 @@ body::before {
 
     <div class="output-label">Optimized Titles</div>
     <div class="output-box empty" id="titlesOutput">Your optimized titles will appear here...</div>
+  </div>
+
+  <!-- ┌──────────────────────────┐
+       │  PAGE: METADATA GENERATOR │
+       └──────────────────────────┘ -->
+  <div class="page" id="page-metadata">
+    <div class="pg-header">
+      <div class="pg-eyebrow">Tools</div>
+      <h1 class="pg-title">🏷️ Title + Description + Tags</h1>
+      <p class="pg-desc">Enter your video idea and get a click-worthy title, a full description, and ready-to-paste tags.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Video Details</div>
+      <div class="form-group">
+        <label class="form-label">Video Idea</label>
+        <input class="form-input" id="metaIdea" placeholder="e.g., never chew your pen, how to moonwalk, why cats hate water..." />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Tone</label>
+          <select class="form-select" id="metaTone">
+            <option value="shocking">Shocking / WTF</option>
+            <option value="curious">Curious & Educational</option>
+            <option value="fun">Fun & Casual</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Title Variations</label>
+          <select class="form-select" id="metaTitleCount">
+            <option value="3" selected>3 titles</option>
+            <option value="5">5 titles</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="generateMetadata()">⚡ Generate Metadata</button>
+      <div class="loading" id="metaLoading">
+        <div class="dots"><span></span><span></span><span></span></div>
+        Generating your metadata...
+      </div>
+    </div>
+
+    <div class="studio-output" id="metaOutput">
+      <div class="output-label">Titles</div>
+      <div class="output-box empty" id="metaTitlesOut">Titles will appear here...</div>
+
+      <div class="output-label" style="margin-top:20px">Description</div>
+      <div class="output-box empty" id="metaDescOut">Description will appear here...</div>
+
+      <div class="output-label" style="margin-top:20px">Tags</div>
+      <div class="output-box empty" id="metaTagsOut">Tags will appear here...</div>
+    </div>
   </div>
 
   <!-- ┌────────────────┐
@@ -1426,6 +1481,63 @@ For each variation:
     out.classList.remove('empty');
   }
   load('titlesLoading', false);
+}
+
+// ══════════════════════════════════════════════════════════
+//  METADATA GENERATOR
+// ══════════════════════════════════════════════════════════
+async function generateMetadata() {
+  const idea  = document.getElementById('metaIdea').value.trim();
+  const tone  = document.getElementById('metaTone').value;
+  const count = document.getElementById('metaTitleCount').value;
+  if (!idea) { alert('Enter a video idea first!'); return; }
+
+  load('metaLoading', true);
+  const out = document.getElementById('metaOutput');
+  out.classList.add('show');
+  ['metaTitlesOut','metaDescOut','metaTagsOut'].forEach(id => {
+    document.getElementById(id).classList.add('empty');
+    document.getElementById(id).innerHTML = '...';
+  });
+
+  const system = `You are a YouTube Shorts metadata expert. Return ONLY valid JSON, no markdown:
+{
+  "titles": ["title1","title2",...],
+  "description": "full description text here",
+  "tags": "tag1, tag2, tag3, ..."
+}
+
+Title rules: under 60 chars, use curiosity gap, power words (never, secret, why, how), add 1 emoji at end.
+Description rules: 3-5 sentences, hook on line 1, explain the value, end with CTA. Include relevant hashtags at the bottom (#shorts #viral).
+Tags rules: 20-30 comma-separated tags, mix broad and niche, no spaces within tags (use hyphens).`;
+
+  const user = `Video idea: "${idea}"\nTone: ${tone}\nGenerate ${count} title variations + description + tags.`;
+
+  try {
+    const raw  = await callAI(system, user, 0.85, 1500);
+    const data = JSON.parse(raw.replace(/```json?|```/g, '').trim());
+
+    const titlesEl = document.getElementById('metaTitlesOut');
+    titlesEl.classList.remove('empty');
+    titlesEl.innerHTML = `<button class="copy-btn" onclick="copyText('${escAttr(data.titles.join('\n'))}')">Copy</button>` +
+      data.titles.map((t, i) => `<div style="padding:6px 0;border-bottom:1px solid var(--border)">${i+1}. ${escHtml(t)}</div>`).join('');
+
+    const descEl = document.getElementById('metaDescOut');
+    descEl.classList.remove('empty');
+    descEl.innerHTML = `<button class="copy-btn" onclick="copyText(this.nextSibling.innerText)">Copy</button>` +
+      `<div>${escHtml(data.description).replace(/\n/g,'<br>')}</div>`;
+
+    const tagsEl = document.getElementById('metaTagsOut');
+    tagsEl.classList.remove('empty');
+    tagsEl.innerHTML = `<button class="copy-btn" onclick="copyText('${escAttr(data.tags)}')">Copy</button>` +
+      `<div style="line-height:2">${escHtml(data.tags).split(',').map(t => `<span style="display:inline-block;background:var(--s3);border:1px solid var(--border);border-radius:5px;padding:2px 10px;margin:3px;font-size:12px;font-family:var(--font-mono)">${t.trim()}</span>`).join('')}</div>`;
+
+    saveHistory('Metadata: ' + idea, `TITLES:\n${data.titles.join('\n')}\n\nDESCRIPTION:\n${data.description}\n\nTAGS:\n${data.tags}`);
+  } catch(e) {
+    document.getElementById('metaTitlesOut').innerHTML = `<span style="color:var(--acc)">Error: ${e.message}</span>`;
+    document.getElementById('metaTitlesOut').classList.remove('empty');
+  }
+  load('metaLoading', false);
 }
 
 // ══════════════════════════════════════════════════════════
