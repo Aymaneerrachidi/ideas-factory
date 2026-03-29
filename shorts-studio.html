@@ -519,6 +519,7 @@ body::before {
 .t-hook { background: rgba(255,77,28,.12); color: var(--acc); }
 .t-diff { background: rgba(255,206,69,.1); color: var(--acc3); }
 .idea-viral { font-size: 11px; color: var(--text3); margin-top: 9px; line-height: 1.5; }
+.idea-likebait { font-size: 11px; color: var(--acc2); margin-top: 7px; font-style: italic; opacity: 0.8; }
 
 /* ══════════════════════════════════════
    YT / CLIP CARDS
@@ -656,6 +657,7 @@ body::before {
         <div class="form-group" style="margin-bottom:0">
           <label class="form-label">Voice Style</label>
           <select class="form-select" id="studioVoice">
+            <option value="viral-competitor">🔥 Viral Competitor</option>
             <option value="casual-bro">Casual Bro</option>
             <option value="narrator">Documentary</option>
             <option value="energetic">High Energy</option>
@@ -752,6 +754,7 @@ body::before {
         <div class="form-group">
           <label class="form-label">Tone</label>
           <select class="form-select" id="ideaTone">
+            <option value="viral-competitor">🔥 Viral Competitor Style</option>
             <option value="casual-curious">Casual & Curious</option>
             <option value="shocking">Shocking / WTF</option>
             <option value="educational">Educational</option>
@@ -770,8 +773,11 @@ body::before {
       </div>
     </div>
 
-    <div class="output-label">Generated Ideas</div>
+    <div class="output-label" id="ideasOutputLabel" style="display:none">Generated Ideas</div>
     <div class="ideas-grid" id="ideasOutput"></div>
+    <div id="ideasRegenRow" style="display:none;text-align:center;margin-top:18px">
+      <button class="btn btn-secondary" onclick="generateIdeas(true)">🔄 None of these — try again</button>
+    </div>
   </div>
 
   <!-- ┌──────────────────┐
@@ -1024,19 +1030,44 @@ document.querySelectorAll('.chip-row').forEach(row => {
 // ══════════════════════════════════════════════════════════
 //  OPENAI HELPER
 // ══════════════════════════════════════════════════════════
-async function callAI(system, user, temp = 0.9, maxTok = 3500) {
+function repairJSON(raw) {
+  let s = raw.replace(/```json?|```/g, '').trim();
+  // Extract first JSON object or array
+  const start = s.search(/[\[{]/);
+  if (start > 0) s = s.slice(start);
+  // Try as-is first
+  try { return JSON.parse(s); } catch(_) {}
+  // Remove trailing commas before } or ]
+  s = s.replace(/,\s*([\]}])/g, '$1');
+  try { return JSON.parse(s); } catch(_) {}
+  // Truncated response — close open structures
+  const opens = [];
+  for (const ch of s) {
+    if (ch === '{' || ch === '[') opens.push(ch === '{' ? '}' : ']');
+    else if (ch === '}' || ch === ']') opens.pop();
+  }
+  // If last char is mid-string, trim back to last complete value
+  s = s.replace(/,?\s*"[^"]*$/, '').replace(/,\s*$/, '');
+  s += opens.reverse().join('');
+  try { return JSON.parse(s); } catch(e) { throw new Error('Could not parse AI response: ' + e.message); }
+}
+
+async function callAI(system, user, temp = 0.9, maxTok = 4096, jsonMode = true) {
   const key = getKey();
   if (!key) return null;
+
+  const body = {
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+    temperature: temp,
+    max_tokens: maxTok
+  };
+  if (jsonMode) body.response_format = { type: 'json_object' };
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-      temperature: temp,
-      max_tokens: maxTok
-    })
+    body: JSON.stringify(body)
   });
 
   if (!res.ok) {
@@ -1096,6 +1127,84 @@ async function generateStudio() {
   const includesCues = includes.includes('visuals') ? '- Include visual cue notes [like this] for each section\n' : '';
   const includesTiming = includes.includes('timing') ? '- Include exact timing markers (e.g. 0:00-0:03)\n' : '';
   const includesCTA = includes.includes('cta') ? '- Include a call-to-action at the end (follow, like, comment)\n' : '';
+
+  // ── VIRAL COMPETITOR STYLE — dedicated prompt matching top-performing competitor format ──
+  if (voice === 'viral-competitor') {
+    const competitorSystem = `You are a viral YouTube Shorts scriptwriter. Return ONLY valid JSON, no markdown, no code fences.
+
+SCRIPT STRUCTURE (exact order):
+1. "Have you ever wanted to [X]? Like, is it even possible?" OR "Have you ever wondered how people [X]? Like how is this even possible?"
+2. "So you have probably seen viral videos of people [doing X]."
+3. "Many people think [it is impossible/fake], but there is actually a secret [method/reason]."
+4. ONE like/subscribe line: "But if you [trivially easy thing everyone can do], like and subscribe." — The thing in brackets must be SO basic everyone qualifies (e.g. "know how to walk", "have ever seen grass", "have hair", "have arms"). NOT the video topic.
+5. "So how do you do it?" or "So what is the reason?"
+6. 2-4 short steps: "First... Then... Finally..."
+7. Optional one-sentence punchline.
+
+RULES: No abbreviations (write "you are" not "you're"). 60-90 words total. Natural flowing speech. No emojis in script.
+
+EXAMPLE: "Have you ever wanted to walk on water? Like, is it even possible to learn this? So you have probably seen viral videos of people surprisingly walking on water. Many people believe these are totally fake but there is actually a secret method. But if you know how to walk, like and subscribe. So how do you do it? First, place a transparent chair into the water. Then just walk across it."
+
+Return JSON: {"hooks":[{"number":1,"style":"Question","lines":["sentence 1.","sentence 2."],"why":"why it stops scrolling"},{"number":2,"style":"Shock","lines":["sentence."],"why":"..."},{"number":3,"style":"Challenge","lines":["sentence."],"why":"..."}],"script":"full script text here","stats":{"lines":80,"hookScore":8,"rewatchScore":7,"hashtags":["tag1","tag2","tag3","tag4","tag5"]}}`;
+
+    const competitorUser = `Video idea: "${idea}"
+Generate 3 hooks + one complete viral competitor-style script. 60-90 words max. Flowing natural sentences, no abbreviations. Include the trivially-easy like/subscribe line before the reveal.`;
+
+    load('studioLoading', true);
+    document.getElementById('studioBtn').disabled = true;
+    document.getElementById('studioOutput').classList.remove('show');
+
+    try {
+      const raw = await callAI(competitorSystem, competitorUser, 0.88, 3500);
+      const data = repairJSON(raw);
+
+      document.getElementById('hooksGrid').innerHTML = data.hooks.map((h, i) => {
+        const lines = Array.isArray(h.lines) ? h.lines : [h.screen || h.voiceover || ''];
+        const linesHtml = lines.map(l => `<div class="hook-caption-line">"${escHtml(l)}"</div>`).join('');
+        const hookText = lines.join('\n');
+        return `
+        <div class="hook-card">
+          <div class="hook-number">Hook ${h.number || i+1} · ${escHtml(h.style || '')}</div>
+          <div class="hook-captions">${linesHtml}</div>
+          <div class="hook-why">💡 ${escHtml(h.why)}</div>
+          <button class="hook-use-btn" onclick="useHook(${JSON.stringify(hookText)})">Use This Hook ↗</button>
+        </div>`;
+      }).join('');
+
+      const scriptRaw = Array.isArray(data.script) ? data.script.join('\n') : String(data.script || '');
+      const scriptLines = scriptRaw.split('\n').filter(l => l.trim());
+      const scriptHtml = scriptLines.map(line => {
+        const clean = line.trim().replace(/^"+|"+$/g, '');
+        if (!clean) return '';
+        const isEngagement = /like and subscribe|like,?\s+and\s+subscribe/i.test(clean);
+        return `<div class="caption-line${isEngagement ? ' caption-engage' : ''}">"${escHtml(clean)}"</div>`;
+      }).join('');
+      document.getElementById('scriptMeta').textContent = `${duration}s · ${data.stats?.lines || scriptLines.length} words · Viral Competitor`;
+      document.getElementById('scriptBody').innerHTML = scriptHtml || escHtml(scriptRaw);
+
+      const s = data.stats || {};
+      document.getElementById('scriptStats').innerHTML = [
+        { val: s.lines || scriptLines.length || '—', label: 'Words' },
+        { val: `${s.hookScore || '—'}/10`,  label: 'Hook Score' },
+        { val: `${s.rewatchScore || '—'}/10`, label: 'Rewatch' },
+        { val: (s.hashtags||[]).slice(0,3).map(t=>'#'+t).join(' '), label: 'Top Tags' }
+      ].map(item => `
+        <div class="stat-item">
+          <div class="stat-val">${item.val}</div>
+          <div class="stat-label">${item.label}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('studioOutput').classList.add('show');
+      saveHistory(`Script: ${idea.substring(0,60)}`, data.script);
+    } catch(e) {
+      alert('Error: ' + e.message);
+    }
+
+    load('studioLoading', false);
+    document.getElementById('studioBtn').disabled = false;
+    return;
+  }
 
   const system = `You are a viral YouTube Shorts scriptwriter. Return ONLY valid JSON, no markdown, no code fences.
 
@@ -1174,7 +1283,7 @@ Generate 3 hooks + one complete script. Max 30 seconds when read aloud (~75 word
 
   try {
     const raw = await callAI(system, user, 0.88, 3500);
-    const data = JSON.parse(raw.replace(/```json?|```/g, '').trim());
+    const data = repairJSON(raw);
 
     // Render hooks (caption-line format)
     document.getElementById('hooksGrid').innerHTML = data.hooks.map((h, i) => {
@@ -1250,13 +1359,59 @@ function useHook(hookText) {
 // ══════════════════════════════════════════════════════════
 //  IDEA GENERATOR
 // ══════════════════════════════════════════════════════════
-async function generateIdeas() {
+let _usedIdeaTitles = [];
+
+async function generateIdeas(regenerate = false) {
   const niches  = [...document.querySelectorAll('#nicheChips .chip.on')].map(c => c.dataset.val).join(', ');
   const count   = document.getElementById('ideaCount').value;
   const tone    = document.getElementById('ideaTone').value;
   const context = document.getElementById('ideaContext').value;
 
-  const system = `You are a viral YouTube Shorts idea generator. Your style is dumb, simple, and extremely clickable — like a channel for 10-year-olds that adults also cannot stop watching.
+  if (!regenerate) _usedIdeaTitles = [];
+
+  const isCompetitorTone = tone === 'viral-competitor';
+
+  const system = isCompetitorTone
+    ? `You are a viral YouTube Shorts idea generator replicating the exact style of the highest-performing competitor channels. Your ideas follow a proven formula: take a trivially simple everyday topic and frame it as something secretly impressive, impossible, or dangerous.
+
+THE COMPETITOR FORMULA:
+- Topics: super simple things everyone has done or can relate to immediately (walking, chewing, blinking, snapping fingers, body sounds, common animals, basic foods, everyday objects)
+- Framing: "Have you ever wanted to [do X]?" or "Have you ever wondered how people [do X]?"
+- The "secret" can be completely absurd — the simpler and dumber the topic, the better
+- Like/subscribe bait tied to something SO basic everyone qualifies (e.g. "if you know how to walk" for a walking video)
+
+PROVEN COMPETITOR IDEA TYPES:
+- "How To [do something that looks impossible but is actually simple]" — moonwalk, splits, walk on water, invisible box, breathing underwater
+- "Why [body part / common thing] [does obvious thing]" — why Asian people have small eyes, why fingers wrinkle, why we yawn contagiously
+- "NEVER [do this totally normal thing]" — chew your pen, use glue in hair, put ice on skin
+- "[Body trick] that takes 10 seconds to learn" — crack knuckles, gleek, pop your ears, roll your tongue
+- "Do this and your [body part] will look [impressive thing]" — veiny arms, loud snap, long fingers
+
+TOPIC POOL — only pick everyday simple things:
+- Body tricks: knuckle crack, tongue roll, gleek, eye trick, finger snap, ear pop, eyebrow raise
+- Impressive skills: moonwalk, splits, invisible box, bottle spin, coin vanish, card throw
+- "Impossible" things: walk on water, breathe underwater, walk on air, see in the dark
+- Body facts: why eyes look small, why skin wrinkles, why we blush, why hair stands up
+- Common dangers: chewing pen ink, swallowing gum, cracking back wrong, eating ice
+- Animal behaviors: why cats purr, why dogs tilt head, why birds sing, why fish swim in circles
+
+TITLE FORMATS — use exactly these:
+- "Have You Ever Wanted To [X]? 😱"
+- "How To [X] In Seconds 😱"
+- "Why [Subject] [Does Obvious Thing] 😨"
+- "NEVER [Do Normal Thing] 😱"
+- "Do THIS Trick With Your [Body Part] 🤯"
+
+RULES:
+- Topics SO simple a 5-year-old understands
+- Title under 8 words + 1 emoji
+- The more obvious and dumb the better
+- NEVER: coding, business, finance, relationships, complex science
+- Each idea must work as a 30-second "have you ever wondered" video
+
+Return ONLY valid JSON object, no markdown:
+{"ideas":[{"title":"...","category":"...","hookType":"Have You Ever|How To|Why|NEVER|Body Trick","difficulty":"Easy|Medium|Hard","whyViral":"max 10 words","likeSubBait":"the trivially-easy thing to use for like/subscribe line"}]}`
+    : `You are a viral YouTube Shorts idea generator. Your style is dumb, simple, and extremely clickable — like a channel for 10-year-olds that adults also cannot stop watching.
 
 THE FORMULA: Take the most obvious, everyday thing in the world. Make it sound shocking, dangerous, or secretly impossible. That is it.
 
@@ -1288,21 +1443,29 @@ RULES:
 GOOD examples: "NEVER Eat Ice 😱", "How To Remove A Frozen Tongue 😱", "Never Swim In Public Pools 🤮", "Why Dogs Hate The Middle Finger 😨", "NEVER Brush Your Hair 😱"
 BAD examples: anything about coding, crypto, productivity, business, relationships, complex science
 
-Return ONLY valid JSON array, no markdown:
-[{"title":"...","category":"...","hookType":"NEVER|How To|Why|Do THIS","difficulty":"Easy|Medium|Hard","whyViral":"max 10 words"}]`;
+Return ONLY valid JSON object, no markdown:
+{"ideas":[{"title":"...","category":"...","hookType":"NEVER|How To|Why|Do THIS","difficulty":"Easy|Medium|Hard","whyViral":"max 10 words"}]}`;
+
+  const avoidClause = _usedIdeaTitles.length
+    ? `\nAVOID THESE ALREADY-SHOWN TITLES — generate completely different ideas:\n${_usedIdeaTitles.map(t => `- ${t}`).join('\n')}`
+    : '';
 
   const user = `Generate ${count} viral YouTube Shorts ideas.
 Niches: ${niches || 'all'}
 Tone: ${tone}
-${context ? 'Context: ' + context : ''}`;
+${context ? 'Context: ' + context : ''}${avoidClause}`;
 
   load('ideasLoading', true);
   const out = document.getElementById('ideasOutput');
   out.innerHTML = '';
+  document.getElementById('ideasRegenRow').style.display = 'none';
+  document.getElementById('ideasOutputLabel').style.display = 'none';
 
   try {
     const raw    = await callAI(system, user);
-    const ideas  = JSON.parse(raw.replace(/```json?|```/g, '').trim());
+    const parsed = repairJSON(raw);
+    const ideas  = Array.isArray(parsed) ? parsed : (parsed.ideas || []);
+    _usedIdeaTitles.push(...ideas.map(i => i.title));
     out.innerHTML = ideas.map(idea => `
       <div class="idea-card" onclick="sendToStudio('${escAttr(idea.title)}')">
         <div class="idea-title">${escHtml(idea.title)}</div>
@@ -1312,17 +1475,23 @@ ${context ? 'Context: ' + context : ''}`;
           <span class="idea-tag t-diff">${escHtml(idea.difficulty)}</span>
         </div>
         <div class="idea-viral">${escHtml(idea.whyViral || '')}</div>
+        ${idea.likeSubBait ? `<div class="idea-likebait">👆 "But if you ${escHtml(idea.likeSubBait)}, like and subscribe"</div>` : ''}
       </div>
     `).join('');
     saveHistory('Ideas', ideas.map(i => i.title).join('\n'));
+    document.getElementById('ideasOutputLabel').style.display = '';
+    document.getElementById('ideasRegenRow').style.display = '';
   } catch(e) {
     out.innerHTML = `<div class="card" style="color:var(--acc)">Error: ${e.message}</div>`;
   }
   load('ideasLoading', false);
 }
 
-function sendToStudio(title) {
+function sendToStudio(title, useCompetitorStyle) {
   document.getElementById('studioIdea').value = title;
+  if (useCompetitorStyle || document.getElementById('ideaTone').value === 'viral-competitor') {
+    document.getElementById('studioVoice').value = 'viral-competitor';
+  }
   // Navigate to studio
   document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1356,7 +1525,7 @@ async function findClips() {
 
   try {
     const raw  = await callAI(system, `Topic: "${query}"\nClip type: ${type}\nLicense: ${license}`);
-    const data = JSON.parse(raw.replace(/```json?|```/g, '').trim());
+    const data = repairJSON(raw);
     out.innerHTML = data.searches.map(s => `
       <div class="yt-card">
         <div class="yt-info">
@@ -1393,7 +1562,7 @@ async function suggestClipIdeas() {
     const result = await callAI(
       `You are a visual content strategist for YouTube Shorts. Suggest B-roll clips, visual transitions, and footage ideas. Be specific about what to film or source.`,
       `I'm making a YouTube Short about: "${query}"\n\nSuggest 8-10 specific clips I need, where to find them, and how to transition. Format as a numbered list with emoji.`,
-      0.9
+      0.9, 4096, false
     );
     empty.style.display = 'none';
     out.innerHTML = `
@@ -1430,7 +1599,7 @@ async function analyzeTrends() {
     const result = await callAI(
       `You are a YouTube Shorts trend analyst (early 2026). Provide actionable, specific insights for curiosity-driven faceless shorts. Include specific video ideas, data-backed reasoning, and concrete action items. Format with emojis and clear sections.`,
       `Niche: "${niche}"\nFocus: ${focusMap[focus]}\n\nGive me a detailed trend report with 5+ insights and 10 video ideas.`,
-      0.9
+      0.9, 4096, false
     );
     out.classList.remove('empty');
     out.innerHTML = `<button class="copy-btn" onclick="copyText(this.parentElement.innerText)">Copy</button>` +
@@ -1464,7 +1633,7 @@ For each variation:
 💡 Why: [explanation]
 ---`,
       `Original: "${title}"\nGenerate ${count} optimized variations, best to worst CTR.`,
-      0.85
+      0.85, 4096, false
     );
     out.classList.remove('empty');
     out.innerHTML = `<button class="copy-btn" onclick="copyText(this.parentElement.innerText)">Copy</button>` +
@@ -1509,7 +1678,7 @@ Tags rules: 20-30 comma-separated tags, mix broad and niche, no spaces within ta
 
   try {
     const raw  = await callAI(system, user, 0.85, 1500);
-    const data = JSON.parse(raw.replace(/```json?|```/g, '').trim());
+    const data = repairJSON(raw);
 
     const titlesEl = document.getElementById('metaTitlesOut');
     titlesEl.classList.remove('empty');
